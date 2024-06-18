@@ -20,8 +20,8 @@ class Quadrotor(object):
         self.e3 = np.array([0.0, 0.0, 1.0])
         
         # max control actuation
-        self.wmax = 0.2
-        self.fmax = 30.0        
+        self.wmax = 1.0
+        self.fmax = 15.0       
         # convenience
         self.Niters = 0
         self.state = {}
