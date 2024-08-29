@@ -1,94 +1,56 @@
 from derivative_lpf import DirtyDerivative
 from scipy.spatial.transform import Rotation
 import numpy as np
-from utils import inverse_hat_map
+from utils import inverse_hat_map, Rot_i_to_b
 
 class Controller():
     def __init__(self):
-        self.kb = 3.0
-        self.k1 = 0.5
-        self.k2 = 1.0
-        self.tau = 0.5
+        self.k1 = 2.0
+        self.tau = 2.0
         self.G = np.array([0.0, 0.0, -9.81])
     
-    def inner_loop(self, vr, pr, n_t, n_td, R):
-        print("------ innner loop ------")
-        mod_pr = np.linalg.norm(pr)
-        t1 = -1.0 * self.k1 * vr
+    def compute_thrust(self,tilt_los, start_tilt_los, R):
+        print("------ cntrl: thrust scalar ------")
         
-        z2 = vr + self.k1 * pr
-        t2 = -1.0 * self.k2 * z2
+        f1 = self.k1 * (180.0 / 3.1415926) * (tilt_los - start_tilt_los) + 9.81
+        print("f1: ", f1)
+        e3 = e3 = np.array([[0], [0], [1]])
+        print("e3: ", e3)
+        r = np.matmul(R, e3)
+        print("R: ", R)
+        print("r: ", r)
+        f2 = np.dot(r.flatten(), e3.flatten())
+        print("f2: ", f2)
         
-        t3 = -1.0 * pr
+        f = f1/ f2
+        print("f: ", f)
+        return f
+    
+    def compute_w(self, desired_pitch, yaw_los, R):
+        print("---- cntrl: compute angular rates")
         
-        z1 = 1 - np.matmul(n_td.T, n_t)
-        scale = z1 / (self.kb**2 - z1**2)
-        t4 = scale * (1.0 / mod_pr) \
-            * np.matmul((-1.0 * np.identity(3)) + np.matmul(n_t, n_t.T), n_td)
-            
-        ad = t1 + t2 + t3 + t4
-        net_acc = ad- self.G
-        n_fd = net_acc / np.linalg.norm(net_acc)
-        n_f = np.matmul(R, np.array([0.0, 0.0, 1.0]))
-        
-        ### interception control
-        axis = np.cross(n_f, n_fd)
-        angle = np.arccos(np.matmul(n_t.T, n_fd))
-        axis = axis / np.linalg.norm(axis)
-        Rtilt_ = Rotation.from_rotvec(angle * axis)
-        Rtilt = Rtilt_.as_matrix()
-        Rd = np.matmul(Rtilt, R)
-        
-        ### geometric control
-        # yaw_d = np.arctan2(n_t[1], n_t[0])
-        # print("desired yaw: ", yaw_d)
-        # proj_x_des = np.array([np.cos(yaw_d), np.sin(yaw_d), 0.0])
-        # z_des = n_fd
-        # y_des = np.cross(z_des, proj_x_des)
-        # x_des = np.cross(y_des, z_des)
-        # Rd = np.zeros((3, 3))
-        # Rd[:, 0] = x_des
-        # Rd[:, 1] = y_des
-        # Rd[:, 2] = z_des
-        # print("z des: ", z_des)
-        # print("y des: ", y_des)
-        # print("x des: ", x_des)
-        # print("Rd: ", Rd)
-        
-        fd = np.dot(n_f, net_acc)
+        Rd_T = Rot_i_to_b(0.0, desired_pitch, yaw_los)
+        Rd = Rd_T.T
         tr1 = np.matmul(Rd.T, R)
         tr2 = np.matmul(R.T, Rd)
-        w2 = self.tau * -1.0 * inverse_hat_map(tr1 - tr2)
-        
-        
-        
-        print("ad: ", ad)
-        print("fd: ", fd)
-        print("w2: ", w2)
-        
-        return fd, w2
-    
-    def outer_loop(self, n_td, n_t, R):
-        z1 = 1 - np.matmul(n_td.T, n_t)
-        scale = z1 / (self.kb**2 - z1**2)
-        w1 = scale * np.matmul(R.T, np.cross(n_td, n_t))
-        
-        print("------ outer loop control ------")
-        print("z1: ", z1)
-        print("scale: ", scale)
-        print("w1: ", w1)
-        return w1
+        w = self.tau * -1.0 * inverse_hat_map(tr1 - tr2)
+        print("w: ", w)
+        return w
     
     def update(self, state):
         # read states and commanded
-        n_td = state["n_td"]
+        start_tilt_los = state["start_tilt_los"]
+        desired_pitch = state["desired_pitch"]
         n_t = state["n_t"]
         pr = state["pr"]
         vr = state["vr"]
         R = state["R"]
-        # run outer loop
-        wb1 = self.outer_loop(n_td, n_t, R)
-        # run inner loop
-        fd, wb2 = self.inner_loop(vr, pr, n_t, n_td, R)
-        # return thrust and body rates
-        return fd, (wb1+wb2)
+        
+        deg_to_rad5 = 5.0 * 3.1415926/180.0
+        tilt_los = np.arctan2(n_t[2], np.sqrt(n_t[0]**2 + n_t[1]**2)) + np.random.uniform(-1.0 * deg_to_rad5, deg_to_rad5)
+        yaw_los = np.arctan2(n_t[1] , n_t[0]) + np.random.uniform(-1.0 * deg_to_rad5, deg_to_rad5)
+
+        fd = self.compute_thrust(tilt_los, start_tilt_los, R)
+        wb = self.compute_w(desired_pitch, yaw_los, R)
+
+        return fd, wb

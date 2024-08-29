@@ -13,13 +13,12 @@ class Simulator():
         self.Tf = 20.0
         self.N = int(self.Tf/ self.Tstep)
         self.target_position = None
-        self.n_td = None
         self.state = {}
         self.history = {}
         self.last_strike_index = 0
         
     
-    def run(self, target_pos, n_td = None, Tf = 5.0,  Ts=0.01):
+    def run(self, target_pos, Tf = 5.0,  Ts=0.01, desired_pitch = 1):
         self.Tf = Tf
         self.Tstep = Ts
         self.N = int(self.Tf/ self.Tstep)
@@ -29,7 +28,6 @@ class Simulator():
         
         self.history["time_step"] = np.zeros((1,self.N))
         self.history["n_t"] = np.zeros((3, self.N))
-        self.history["n_td"] = np.zeros((3, self.N))
         self.history["pr"] = np.zeros((3,self.N))
         self.history["vr"] = np.zeros((3,self.N))
         self.history["R"] = np.zeros((3, 3,self.N))
@@ -42,7 +40,6 @@ class Simulator():
         self.history["clip_wd"] = np.zeros((3, self.N))
         self.history["LOS_tilt"] = np.zeros((1, self.N))
         self.history["LOS_yaw"] = np.zeros((1, self.N))
-        self.history["z1"] = np.zeros((1, self.N))
         
         self.target_position = target_pos
         
@@ -51,9 +48,12 @@ class Simulator():
         self.state["R"] = self.quad.state["R"]
         self.state["n_t"] = -1.0 * self.state["pr"] / np.linalg.norm(self.state["pr"])
         
-        self.n_td_bool = True if n_td is not None else False
-        print("ntd bool: ", self.n_td_bool)
-        self.state["n_td"] = n_td if self.n_td_bool else self.state["n_t"]
+        tilt_los = np.arctan2(self.state["n_t"][2], np.sqrt(self.state["n_t"][0]**2 + self.state["n_t"][1]**2))
+        yaw_los = np.arctan2(self.state["n_t"][1] , self.state["n_t"][0])
+        
+        self.state["desired_pitch"] = desired_pitch * 3.1415926 / 180.0
+        self.state["start_tilt_los"] = tilt_los
+        print("start LOS tilt: ", self.state["start_tilt_los"]*180.0 / 3.1415926)
         
         mod_pr_value = 1000000.0
         
@@ -70,12 +70,10 @@ class Simulator():
             self.state["vr"] = self.quad.state["v"]
             self.state["R"] = self.quad.state["R"]
             self.state["n_t"] = -1.0 * self.state["pr"] / np.linalg.norm(self.state["pr"])
-            self.state["n_td"] = n_td if self.n_td_bool else self.state["n_t"]
             
             
             self.history["time_step"][:, i] = (i)*self.Tstep
             self.history["n_t"][:, i] = self.state["n_t"]
-            self.history["n_td"][:, i] = self.state["n_td"]
             self.history["pr"][:, i] = self.state["pr"]
             self.history["vr"][:, i] = self.state["vr"]
             self.history["R"][:, :, i] = self.state["R"]
@@ -96,26 +94,25 @@ class Simulator():
             print("pitch: ", pitch)
             print("yaw: ", yaw)
             print("n_t: ", self.state["n_t"])
-            print("n_td: ", self.state["n_td"])
             print("mod pr: ", np.linalg.norm(self.state["pr"]))
             
             tilt_los = np.arctan2(self.state["n_t"][2], np.sqrt(self.state["n_t"][0]**2 + self.state["n_t"][1]**2))
             yaw_los = np.arctan2(self.state["n_t"][1] , self.state["n_t"][0])
-            z1_ = 1 - np.dot(self.state["n_td"], self.state["n_t"])
             
             
-            print("LOS tilt angles: ", tilt_los)
-            print("LOS yaw angles: ", yaw_los)
+            print("LOS tilt angles: ", tilt_los*180.0/3.1415926)
+            print("LOS start - tilt angles: ",  (self.state["start_tilt_los"] - tilt_los)*180.0/3.1415926)
+            print("LOS yaw angles: ", yaw_los*180.0/3.1415926)
             self.history["LOS_tilt"][:, i] = tilt_los
             self.history["LOS_yaw"][:, i] = yaw_los
-            self.history["z1"][:, i] = z1_
             
-            if (np.linalg.norm(self.state["pr"]) <= mod_pr_value):
-                mod_pr_value = np.linalg.norm(self.state["pr"])
-            else:
-                print("strikkeee doneee")
-                self.last_strike_index = i+1
-                break
+            # if (np.linalg.norm(self.state["pr"]) <= mod_pr_value):
+            #     mod_pr_value = np.linalg.norm(self.state["pr"])
+            # else:
+            #     print("strikkeee doneee")
+            #     self.last_strike_index = i+1
+            #     break
+            self.last_strike_index = i+1
             
 
     def plot(self):
@@ -242,14 +239,14 @@ class Simulator():
         angle = self.history["drone_angles"][:, :self.last_strike_index]
         
         ax = fig4.add_subplot(2, 2, 1)
-        ax.plot(tvec, angle[0, :]*180/np.pi, label="pitch")
-        ax.set_ylabel("pitch")
+        ax.plot(tvec, angle[0, :]*180/np.pi, label="roll")
+        ax.set_ylabel("roll")
         ax.grid()
         ax.legend()
         
         ax = fig4.add_subplot(2, 2, 2)
-        ax.plot(tvec, angle[1, :]*180.0/np.pi, label="roll")
-        ax.set_ylabel("roll")
+        ax.plot(tvec, angle[1, :]*180.0/np.pi, label="pitch")
+        ax.set_ylabel("pitch")
         ax.grid()
         ax.legend()
         
@@ -266,7 +263,6 @@ class Simulator():
         
         los_tilt_angles = self.history["LOS_tilt"][:, :self.last_strike_index]
         los_yaw_angles = self.history["LOS_yaw"][:, :self.last_strike_index]
-        z1__ = self.history["z1"][:, :self.last_strike_index]
         
         ax = fig4.add_subplot(2, 2, 1)
         ax.plot(tvec, los_tilt_angles[0, :]*180/np.pi, label="los tilt")
@@ -280,16 +276,8 @@ class Simulator():
         ax.grid()
         ax.legend()
         
-        ax = fig4.add_subplot(2, 2, 3)
-        ax.plot(tvec, z1__[0, :], label="z1")
-        ax.set_ylabel("z1")
-        ax.grid()
-        ax.legend()
-        
         ax1 = plt.figure().gca(projection='3d')
         ax1.plot(pos[0, :], pos[1, :], pos[2, :], zdir='z', label='path of the drone')
-        
-        
         
         print("drone position: ")
         x = self.history["p"][0, :]

@@ -19,7 +19,7 @@ from quad_sim import Simulator
 
 #######################################################
 
-quad = Quadrotor(r= np.array([200.0, 25.0, 100.0]))
+quad = Quadrotor(r= np.array([200.0, 25.0, 80.0]))
 # quad = Quadrotor(r= np.array([99.0, 0.0, 35.0]))
 
 print("Initial state of quadrotor: ")
@@ -29,14 +29,10 @@ ctrl = Controller()
 
 sim = Simulator(quad, ctrl)
 
-target_position = np.array([1.0, 2.0, 20.0])
-# ntd = np.array([-0.93969262078, -0.0, -0.34202014332]) # 20 deg LOS
-# ntd = np.array([-0.8660, -0.0, -0.5]) # 30 deg LOS
-ntd = np.array([-0.7071, -0.0, -0.7071]) # 30 deg LOS
+target_position = np.array([0.0, 0.0, 0.0])
 
 
-
-sim.run(target_pos=target_position, n_td=ntd, Tf=100.0, Ts=0.01)
+sim.run(target_pos=target_position, Tf=30.0, Ts=0.01, desired_pitch = 3)
 sim.plot()
 
 
