@@ -32,7 +32,7 @@ sim = Simulator(quad, ctrl)
 target_position = np.array([0.0, 0.0, 0.0])
 
 
-sim.run(target_pos=target_position, Tf=30.0, Ts=0.01, desired_pitch = 3)
+sim.run(target_pos=target_position, Tf=100.0, Ts=0.01, desired_pitch = 3)
 sim.plot()
 
 
