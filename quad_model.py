@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from utils import rk4, hat_map
+from utils import inverse_hat_map, Rot_i_to_b
 
 np.set_printoptions(formatter={'float': '{: 0.3f}'.format})
 
@@ -13,6 +14,8 @@ class Quadrotor(object):
         self.r = r if r is not None else np.zeros((3))
         self.v = v if v is not None else np.zeros((3))
         self.R = R if R is not None else np.identity(3)
+        # R_T = Rot_i_to_b(0.0, 0.0, -90.0*3.1415926/180.0)
+        # self.R = R_T.T
         
         # phyiscal true parameters
         self.g = np.array([0.0, 0.0, -9.81])
@@ -20,7 +23,7 @@ class Quadrotor(object):
         self.e3 = np.array([0.0, 0.0, 1.0])
         
         # max control actuation
-        self.wmax = 2.0
+        self.wmax = 1.0
         self.fmax = 15.0       
         # convenience
         self.Niters = 0
@@ -57,7 +60,7 @@ class Quadrotor(object):
         print("w_b: ", w_b)
         
         # Saturate control effort
-        f = min(max(f, 0.0), self.fmax)
+        f = min(max(f, 2.0), self.fmax)
         print("clipped f: ", f)
         w_b = self.clamp(w_b, self.wmax)
         print("clipped w_b: ", w_b)

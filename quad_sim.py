@@ -106,13 +106,13 @@ class Simulator():
             self.history["LOS_tilt"][:, i] = tilt_los
             self.history["LOS_yaw"][:, i] = yaw_los
             
-            # if (np.linalg.norm(self.state["pr"]) <= mod_pr_value):
-            #     mod_pr_value = np.linalg.norm(self.state["pr"])
-            # else:
-            #     print("strikkeee doneee")
-            #     self.last_strike_index = i+1
-            #     break
-            self.last_strike_index = i+1
+            if (np.linalg.norm(self.state["pr"]) <= mod_pr_value):
+                mod_pr_value = np.linalg.norm(self.state["pr"])
+            else:
+                print("strikkeee doneee")
+                self.last_strike_index = i+1
+                break
+            # self.last_strike_index = i+1
             
 
     def plot(self):
@@ -278,6 +278,25 @@ class Simulator():
         
         ax1 = plt.figure().gca(projection='3d')
         ax1.plot(pos[0, :], pos[1, :], pos[2, :], zdir='z', label='path of the drone')
+        x_values = [0, 50.0]
+        y_values = [0, 180.0]
+        z_values = [0, 70.0]
+
+        # Plot the line
+        ax1.plot(x_values, y_values, z_values, color='red')
+        # Get current limits
+        x_limits = ax1.get_xlim()
+        y_limits = ax1.get_ylim()
+        z_limits = ax1.get_zlim()
+
+        # Determine the global max limit
+        all_limits = x_limits + y_limits
+        global_max = max(abs(limit) for limit in all_limits)
+
+        # Set the same limits for all axes
+        # ax1.set_xlim([-global_max, global_max])
+        # ax1.set_ylim([-global_max, global_max])
+        # ax1.set_zlim([-global_max, global_max])
         
         print("drone position: ")
         x = self.history["p"][0, :]

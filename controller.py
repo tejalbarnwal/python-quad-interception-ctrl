@@ -5,8 +5,8 @@ from utils import inverse_hat_map, Rot_i_to_b
 
 class Controller():
     def __init__(self):
-        self.k1 = 2.0
-        self.tau = 2.0
+        self.k1 = 1.0
+        self.tau = 1.0
         self.G = np.array([0.0, 0.0, -9.81])
     
     def compute_thrust(self,tilt_los, start_tilt_los, R):
@@ -47,8 +47,8 @@ class Controller():
         R = state["R"]
         
         deg_to_rad = 3.1415926/180.0
-        tilt_los = np.arctan2(n_t[2], np.sqrt(n_t[0]**2 + n_t[1]**2)) + np.random.normal(loc=0, scale=1.0*deg_to_rad)
-        yaw_los = np.arctan2(n_t[1] , n_t[0]) + np.random.normal(loc=0, scale=0.5*deg_to_rad)
+        tilt_los = np.arctan2(n_t[2], np.sqrt(n_t[0]**2 + n_t[1]**2)) #+ np.random.normal(loc=0, scale=1.0*deg_to_rad)
+        yaw_los = np.arctan2(n_t[1] , n_t[0]) #+ np.random.normal(loc=0, scale=0.5*deg_to_rad)
 
         fd = self.compute_thrust(tilt_los, start_tilt_los, R)
         wb = self.compute_w(desired_pitch, yaw_los, R)
